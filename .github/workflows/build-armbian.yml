@@ -180,7 +180,6 @@ on:
         default: "6.1.y_6.6.y"
         type: choice
         options:
-          - 6.6.67
           - 5.4.y
           - 5.10.y
           - 5.15.y
