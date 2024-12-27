@@ -82,10 +82,9 @@ firmware_repo="https://github.com/ophub/firmware"
 # Set the kernel download repository from github.com
 kernel_repo="https://github.com/jfy9606/amlogic-s9xxx-armbian"
 # Set the tags(kernel_xxx) of the default kernel that can be replaced via the [ -u ] parameter
-default_tags="latest"
+default_tags="stable"
 kernel_usage=""
 # Set the list of kernels used by default(Selectable version)
-latest_kernel=("6.6.y")
 stable_kernel=("6.6.y" "6.1.y")
 flippy_kernel=(${stable_kernel[@]})
 dev_kernel=(${stable_kernel[@]})
