@@ -134,7 +134,8 @@ jobs:
           sudo rm -f /swapfile /mnt/swapfile
           sudo -E apt-get -y update
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
-          sudo -E apt-get -y install $(curl -fsSL https://is.gd/depend_ubuntu2204_armbian)
+          sudo -E apt-get -y install $(curl -fsSL https://raw.githubusercontent.com/jfy9606/amlogic-s9xxx-armbian/main/compile-kernel/tools/script/ubuntu2204-build-armbian-depends)
+          sudo -E apt-get -y install u-boot-tools
           sudo -E systemctl daemon-reload
           sudo -E apt-get -y full-upgrade
           sudo -E apt-get -y autoremove --purge
