@@ -24,8 +24,8 @@ fi
 
 if test "${logo}" = "disabled"; then setenv logo "logo.nologo"; fi
 
-if test "${console}" = "display" || test "${console}" = "both"; then setenv consoleargs "console=tty0"; fi
-if test "${console}" = "serial" || test "${console}" = "both"; then setenv consoleargs "console=ttyS02,1500000 ${consoleargs}"; fi
+if test "${console}" = "display" || test "${console}" = "both"; then setenv consoleargs "console=tty1"; fi
+if test "${console}" = "serial" || test "${console}" = "both"; then setenv consoleargs "console=ttyS2,1500000 ${consoleargs}"; fi
 if test "${earlycon}" = "on"; then setenv consoleargs "earlycon ${consoleargs}"; fi
 if test "${bootlogo}" = "true"; then setenv consoleargs "bootsplash.bootfile=bootsplash.armbian ${consoleargs}"; fi
 
@@ -73,4 +73,4 @@ fi
 booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
 
 # Recompile with:
-# mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr
+# mkimage -C none -A arm -T script -n 'flatmax load script' -d /boot/boot.cmd /boot/boot.scr
