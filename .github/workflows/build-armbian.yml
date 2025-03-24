@@ -239,6 +239,7 @@ on:
         options:
           - ophub
           - angel
+          - jfy9606
 
 env:
   TZ: America/New_York
