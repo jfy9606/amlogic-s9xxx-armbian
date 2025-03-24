@@ -1,7 +1,7 @@
 #==========================================================================
 # Description: Compile the kernel
 # Copyright (C) 2021 https://github.com/unifreq/openwrt_packit
-# Copyright (C) 2021 https://github.com/ophub/amlogic-s9xxx-armbian
+# Copyright (C) 2021 https://github.com/jfy9606/amlogic-s9xxx-armbian
 #==========================================================================
 
 name: Compile the kernel
@@ -76,7 +76,7 @@ on:
         type: choice
         options:
           - -ophub
-          - -yourname
+          - -jfy9606
 
 env:
   TZ: America/New_York
