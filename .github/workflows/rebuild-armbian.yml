@@ -3,7 +3,7 @@
 # Copyright (C) 2021 https://github.com/jfy9606/amlogic-s9xxx-armbian
 #==========================================================================
 
-name: Rebuild armbian
+name: Rebuild Armbian
 
 on:
   repository_dispatch:
