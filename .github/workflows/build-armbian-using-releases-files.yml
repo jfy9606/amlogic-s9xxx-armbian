@@ -77,6 +77,7 @@ on:
           - r68s
           - renegade-rk3328
           - rk3318-box
+          - rock-4d
           - rock5b
           - rock5c
           - rp-rk3568
@@ -258,7 +259,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
     steps:
@@ -316,7 +317,7 @@ jobs:
         run: |
           armbian_buildpath="build/output/images"
           [[ -d "${armbian_buildpath}" ]] || mkdir -p "${armbian_buildpath}"
-          ln -sf /builder/build ${GITHUB_WORKSPACE}/build
+          ln -sf /builder/build ${{ github.workspace }}/build
           ln -sf /builder/build /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/build
 
           latest_version=$(curl -s \
