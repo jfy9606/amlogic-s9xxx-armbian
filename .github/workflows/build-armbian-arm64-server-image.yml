@@ -217,6 +217,8 @@ on:
         type: choice
         options:
           - ophub/kernel
+          - jfy9606/amlogic-s9xxx-kernel
+          - jfy9606/amlogic-s9xxx-armbian
       kernel_usage:
         description: "Set the tags of the stable kernel."
         required: false
@@ -252,6 +254,7 @@ on:
         options:
           - ophub
           - angel
+          - jfy9606
 
 env:
   TZ: Etc/UTC
