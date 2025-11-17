@@ -89,7 +89,6 @@ kernel_usage=""
 # Set the list of kernels used by default(Selectable version)
 stable_kernel=("5.15.y" "6.1.y")
 flippy_kernel=(${stable_kernel[@]})
-dev_kernel=(${stable_kernel[@]})
 beta_kernel=(${stable_kernel[@]})
 rk3588_kernel=("6.1.y")
 rk35xx_kernel=("6.1.y")
@@ -209,9 +208,8 @@ init_var() {
             if [[ -n "${2}" ]]; then
                 oldIFS="${IFS}"
                 IFS="_"
-                flippy_kernel=(${2})
                 stable_kernel=(${2})
-                dev_kernel=(${2})
+                flippy_kernel=(${2})
                 beta_kernel=(${2})
                 specific_kernel=(${2})
                 IFS="${oldIFS}"
@@ -344,7 +342,7 @@ check_data() {
         fi
 
         # If auto_kernel is false, use the value from -k parameter
-        if [[ "${auto_kernel}" != "true" ]]; then
+        if [[ ! "${auto_kernel}" =~ ^(true|yes)$ ]]; then
             if [[ "${#specific_kernel[@]}" -eq 0 ]]; then
                 error_msg "Plase use the -k parameter to specify the kernel version."
             else
@@ -632,7 +630,9 @@ extract_armbian() {
     loop_old="$(losetup -P -f --show "${armbian_image_file}")"
     [[ -n "${loop_old}" ]] || error_msg "losetup ${armbian_image_file} failed."
 
-    mount_try ext4 ${loop_old}p1 ${tmp_armbian}
+    # Mount rootfs partition
+    [[ -b "${loop_old}p2" ]] && mount_dev="${loop_old}p2" || mount_dev="${loop_old}p1"
+    mount_try ext4 ${mount_dev} ${tmp_armbian}
 
     cd ${tmp_armbian}
 
@@ -1237,7 +1237,7 @@ find_armbian
 # Download the dependency files
 download_depends
 # Query the latest kernel version
-[[ "${auto_kernel}" == "true" ]] && query_kernel
+[[ "${auto_kernel}" =~ ^(true|yes)$ ]] && query_kernel
 # Download the kernel files
 download_kernel
 
@@ -1254,5 +1254,3 @@ loop_rebuild
 # Show server end information
 echo -e "${STEPS} Server space usage after compilation: \n$(df -hT ${armbian_outputpath}) \n"
 echo -e "${SUCCESS} All process completed successfully."
-# All process completed
-wait

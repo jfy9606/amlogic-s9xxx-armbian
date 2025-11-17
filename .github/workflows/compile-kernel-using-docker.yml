@@ -69,16 +69,11 @@ on:
           - gcc
           - gcc-14.2
           - gcc-14.3
-      compress_format:
-        description: "Set the initrd compression format"
+      ccache_clear:
+        description: "Set whether to clear the cache"
         required: false
-        default: "xz"
-        type: choice
-        options:
-          - xz
-          - gzip
-          - zstd
-          - lzma
+        default: false
+        type: boolean
       docker_image:
         description: "Select Armbian docker image"
         required: false
@@ -184,7 +179,7 @@ jobs:
         if: ${{ steps.install.outputs.status }} == 'success' && !cancelled()
         run: |
           # Create a docker mapping directory
-          mkdir -p /builder/compile-kernel/{kernel,output}
+          mkdir -p /builder/{compile-kernel/{kernel,output},ccache}
           ln -sf /builder/compile-kernel/kernel /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/compile-kernel/kernel
           ln -sf /builder/compile-kernel/output /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/compile-kernel/output
 
@@ -192,12 +187,22 @@ jobs:
           docker run -d --privileged \
               --name armbian-ophub \
               -v /builder/compile-kernel:/opt/kernel/compile-kernel \
+              -v /builder/ccache:/root/.ccache \
               -v /etc/localtime:/etc/localtime:ro \
               -v /etc/timezone:/etc/timezone:ro \
+              -e CCACHE_DIR=/root/.ccache \
               --restart=always \
               ophub/armbian-${{ inputs.docker_image }}:arm64
 
           echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: /builder/ccache
+          key: kernel-${{ inputs.kernel_toolchain }}-${{ inputs.kernel_version }}-${{ github.sha }}
+          restore-keys: |
+            kernel-${{ inputs.kernel_toolchain }}-${{ inputs.kernel_version }}-
 
       - name: Compile the kernel [ ${{ inputs.kernel_version }} ]
         uses: ophub/amlogic-s9xxx-armbian@main
@@ -211,8 +216,8 @@ jobs:
           kernel_package: ${{ inputs.kernel_package }}
           kernel_sign: ${{ inputs.kernel_sign }}
           kernel_toolchain: ${{ inputs.kernel_toolchain }}
-          compress_format: ${{ inputs.compress_format }}
           silent_log: ${{ inputs.silent_log }}
+          ccache_clear: ${{ inputs.ccache_clear }}
 
       - name: Upload Kernel to Release
         uses: ncipollo/release-action@main
@@ -223,6 +228,7 @@ jobs:
           allowUpdates: true
           removeArtifacts: false
           replacesArtifacts: true
+          makeLatest: false
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             The kernel can be used to compile Armbian and OpenWrt.
