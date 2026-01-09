@@ -94,13 +94,13 @@ kernel_config_repo="https://github.com/ophub/kernel"
 kernel_config_repo_branch="main"
 kernel_config_path="kernel-config/release"
 # Set the kernel config tag directory, options: [ stable / rk3588 / rk35xx / h6 ]
-kernel_config_tags="stable"
-kernel_config_download="false"
+config_flavor="stable"
+config_download="false"
 
 # Compile toolchain download mirror, run on Armbian
 dev_repo="https://github.com/ophub/kernel/releases/download/dev"
 # Arm GNU Toolchain source: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
-gun_file="arm-gnu-toolchain-14.3.rel1-aarch64-aarch64-none-linux-gnu.tar.xz"
+gun_file="arm-gnu-toolchain-15.2.rel1-aarch64-aarch64-none-linux-gnu.tar.xz"
 # Set the toolchain path
 toolchain_path="/usr/local/toolchain"
 # Set the default cross-compilation toolchain: [ clang / gcc / gcc-14.2, etc. ]
@@ -145,7 +145,7 @@ init_var() {
     echo -e "${STEPS} Start Initializing Variables..."
 
     # If it is followed by [ : ], it means that the option requires a parameter value
-    local options="k:a:n:m:p:r:t:c:d:s:z:l:g:"
+    local options="k:a:n:m:p:r:t:c:d:s:z:l:f:h:i:"
     parsed_args=$(getopt -o "${options}" -- "${@}")
     [[ ${?} -ne 0 ]] && error_msg "Parameter parsing failed."
     eval set -- "${parsed_args}"
@@ -167,10 +167,10 @@ init_var() {
                 error_msg "Invalid -k parameter [ ${2} ]!"
             fi
             ;;
-        -g | --KernelConfig)
+        -f | --configFlavor)
             if [[ -n "${2}" ]]; then
-                kernel_config_tags="${2}"
-                kernel_config_download="true"
+                config_flavor="${2}"
+                config_download="true"
                 shift 2
             else
                 error_msg "Invalid -g parameter [ ${2} ]!"
@@ -263,6 +263,14 @@ init_var() {
                 shift 2
             else
                 error_msg "Invalid -l parameter [ ${2} ]!"
+            fi
+            ;;
+        # Ignore parameters used by the host system
+        -h | -i)
+            if [[ -n "${2}" ]]; then
+                shift 2
+            else
+                error_msg "Invalid ${1} parameter [ ${2} ]!"
             fi
             ;;
         --)
@@ -495,7 +503,7 @@ get_kernel_config() {
     echo -e "${STEPS} Start downloading the kernel config files..."
 
     # Check if the kernel config file already exists
-    if [[ -s "${config_path}/config-${kernel_verpatch}" && "${kernel_config_download}" == "false" ]]; then
+    if [[ -s "${config_path}/config-${kernel_verpatch}" && "${config_download}" == "false" ]]; then
         echo -e "${INFO} The kernel config file [ config-${kernel_verpatch} ] already exists, skipping download."
         echo -e "${INFO} Config files: \n$(ls -lh ${config_path}/ 2>/dev/null)"
         return
@@ -510,9 +518,9 @@ get_kernel_config() {
     [[ "${?}" -eq 0 ]] || error_msg "Failed to clone the [ ${kernel_config_repo} ] repository."
 
     rm -rf ${config_path}/*
-    cp -f ${tmp_path}/${kernel_config_path}/${kernel_config_tags}/config-* ${config_path}/
+    cp -f ${tmp_path}/${kernel_config_path}/${config_flavor}/config-* ${config_path}/
     [[ "${?}" -eq 0 ]] || error_msg "Failed to copy the kernel config file."
-    echo -e "${INFO} Kernel config files [ ${kernel_config_tags} ] downloaded to [ ${config_path} ] directory."
+    echo -e "${INFO} Kernel config files [ ${config_flavor} ] downloaded to [ ${config_path} ] directory."
     echo -e "${INFO} Config files: \n$(ls -lh ${config_path}/ 2>/dev/null)"
 }
 
@@ -657,22 +665,22 @@ compile_kernel() {
     echo -e "${STEPS} Start compilation kernel [ ${local_kernel_path} ]..."
     make ${silent_print} ${MAKE_SET_STRING} CC="${CC}" LD="${LD}" Image modules dtbs -j${PROCESS}
     #make ${MAKE_SET_STRING} CC="${CC}" LD="${LD}" bindeb-pkg KDEB_COMPRESS=xz KBUILD_DEBARCH=arm64 -j${PROCESS}
-    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The kernel is compiled successfully."
+    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The kernel is compiled successfully." || error_msg "Kernel compilation failed."
 
     # Install modules
     echo -e "${STEPS} Install modules ..."
     make ${silent_print} ${MAKE_SET_STRING} CC="${CC}" LD="${LD}" INSTALL_MOD_PATH=${output_path}/modules modules_install
-    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The modules is installed successfully."
+    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The modules is installed successfully." || error_msg "Modules installation failed."
 
     # Strip debug information
     STRIP="${CROSS_COMPILE}strip"
     find ${output_path}/modules -name "*.ko" -print0 | xargs -0 ${STRIP} --strip-debug 2>/dev/null
-    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The modules is stripped successfully."
+    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The modules is stripped successfully." || echo -e "${WARNING} The modules stripping failed."
 
     # Install headers
     echo -e "${STEPS} Install headers ..."
     headers_install
-    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The headers is installed successfully."
+    [[ "${?}" -eq "0" ]] && echo -e "${SUCCESS} The headers is installed successfully." || error_msg "Headers installation failed."
 }
 
 generate_uinitrd() {
@@ -877,7 +885,7 @@ loop_recompile() {
         fi
 
         # Show server start information
-        echo -e "${INFO} Server space usage before starting to compile: \n$(df -hT ${kernel_path}) \n"
+        echo -e "${INFO} Armbian space usage before starting to compile: \n$(df -hT ${kernel_path}) \n"
 
         # Check disk space size
         echo -ne "(${j}) Start compiling the kernel [\033[92m ${kernel_version} \033[0m]. "
@@ -901,8 +909,9 @@ loop_recompile() {
 }
 
 # Show welcome message
-echo -e "${STEPS} Welcome to compile kernel! \n"
-echo -e "${INFO} Server running on Armbian: [ Release: ${host_release} / Host: ${arch_info} ] \n"
+echo -e "${STEPS} Start compiling the kernel with Armbian..."
+echo -e "${INFO} The Armbian environment [ ${host_release} / ${arch_info} ]"
+
 # Check script permission, supports running on Armbian system.
 [[ "$(id -u)" == "0" ]] || error_msg "Please run this script as root: [ sudo ./${0} ]"
 [[ "${arch_info}" == "aarch64" ]] || error_msg "The script only supports running under Armbian system."
@@ -934,5 +943,5 @@ echo -e "${INFO} Kernel List: [ $(echo ${build_kernel[@]} | xargs) ] \n"
 loop_recompile
 
 # Show server end information
-echo -e "${STEPS} Server space usage after compilation: \n$(df -hT ${kernel_path}) \n"
-echo -e "${SUCCESS} All process completed successfully."
+echo -e "${STEPS} Armbian space usage after compilation: \n$(df -hT ${kernel_path}) \n"
+echo -e "${SUCCESS} Kernel compiled successfully"
