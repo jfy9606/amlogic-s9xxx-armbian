@@ -179,7 +179,7 @@ create_partition() {
     BLANK2="0"
 
     # Format emmc disk
-    echo -e "${INFO} Start create MBR and partittion."
+    echo -e "${INFO} Start create MBR and partition."
     parted -s "${DEV_EMMC}" mklabel msdos
     parted -s "${DEV_EMMC}" mkpart primary fat32 $((BLANK1))MiB $((BLANK1 + BOOT - 1))MiB
     parted -s "${DEV_EMMC}" mkpart primary ${file_system_type} $((BLANK1 + BOOT + BLANK2))MiB 100%
@@ -206,7 +206,7 @@ copy_bootfs() {
     PART_BOOT="${DEV_EMMC}p1"
 
     if grep -q ${PART_BOOT} /proc/mounts; then
-        echo -e "${INFO} Unmounting BOOT partiton."
+        echo -e "${INFO} Unmounting BOOT partition."
         umount -f ${PART_BOOT}
         [[ "${?}" -eq "0" ]] || error_msg "Failed to umount [ ${PART_BOOT} ]."
     fi
@@ -269,7 +269,7 @@ copy_rootfs() {
     PART_ROOT="${DEV_EMMC}p2"
 
     if grep -q ${PART_ROOT} /proc/mounts; then
-        echo -e "${INFO} Unmounting ROOT partiton."
+        echo -e "${INFO} Unmounting ROOT partition."
         umount -f ${PART_ROOT}
         [[ "${?}" -eq "0" ]] || error_msg "Failed to umount [ ${PART_ROOT} ]."
     fi
@@ -292,15 +292,17 @@ copy_rootfs() {
     echo -e "${INFO} Start copy ROOTFS partition data."
     # Create relevant directories
     mkdir -p ${DIR_INSTALL}/{boot/,dev/,media/,mnt/,proc/,run/,sys/,tmp/}
-    chmod 777 ${DIR_INSTALL}/tmp
+    chmod 1777 ${DIR_INSTALL}/tmp
     # Copy the relevant directory
     COPY_SRC="etc home opt root selinux srv usr var"
     for src in ${COPY_SRC}; do
-        echo -e "${INFO} Copy the [ ${src} ] directory."
-        tar -cf - ${src} | (
-            cd ${DIR_INSTALL}
-            tar -mxf -
-        )
+        if [[ -d "${src}" ]]; then
+            echo -e "${INFO} Copying [ ${src} ] ..."
+            tar -cf - ${src} | (
+                cd ${DIR_INSTALL}
+                tar -xpf -
+            )
+        fi
     done
     # Create relevant symbolic link
     ln -sf usr/bin ${DIR_INSTALL}/bin
