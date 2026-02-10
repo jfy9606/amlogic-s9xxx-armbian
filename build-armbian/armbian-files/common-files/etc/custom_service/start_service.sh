@@ -12,7 +12,7 @@
 # Dependent script: /etc/rc.local (which runs with 'set -e')
 # File path: /etc/custom_service/start_service.sh
 #
-# Version: v1.2
+# Version: v1.3
 #
 #========================================================================================
 
@@ -36,10 +36,10 @@ log_message "Kernel console logging level set to 1 (Panic only)."
 ophub_release_file="/etc/ophub-release"
 FDT_FILE="" # Initialize FDT_FILE to be empty.
 
-[[ -f "${ophub_release_file}" ]] && { FDT_FILE="$(grep -oE 'meson.*dtb' "${ophub_release_file}")"; }
-[[ -z "${FDT_FILE}" && -f "/boot/uEnv.txt" ]] && { FDT_FILE="$(grep -E '^FDT=.*\.dtb$' /boot/uEnv.txt | sed -E 's#.*/##')"; }
-[[ -z "${FDT_FILE}" && -f "/boot/extlinux/extlinux.conf" ]] && { FDT_FILE="$(grep -E '/dtb/.*\.dtb$' /boot/extlinux/extlinux.conf | sed -E 's#.*/##')"; }
-[[ -z "${FDT_FILE}" && -f "/boot/armbianEnv.txt" ]] && { FDT_FILE="$(grep -E '^fdtfile=.*\.dtb$' /boot/armbianEnv.txt | sed -E 's#.*/##')"; }
+[[ -f "${ophub_release_file}" ]] && { FDT_FILE="$(grep -oE 'meson.*dtb' "${ophub_release_file}" || true)"; }
+[[ -z "${FDT_FILE}" && -f "/boot/uEnv.txt" ]] && { FDT_FILE="$(grep -E '^FDT=.*\.dtb$' /boot/uEnv.txt | sed -E 's#.*/##' || true)"; }
+[[ -z "${FDT_FILE}" && -f "/boot/extlinux/extlinux.conf" ]] && { FDT_FILE="$(grep -E '/dtb/.*\.dtb$' /boot/extlinux/extlinux.conf | sed -E 's#.*/##' || true)"; }
+[[ -z "${FDT_FILE}" && -f "/boot/armbianEnv.txt" ]] && { FDT_FILE="$(grep -E '^fdtfile=.*\.dtb$' /boot/armbianEnv.txt | sed -E 's#.*/##' || true)"; }
 log_message "Detected FDT file: ${FDT_FILE:-'not found'}"
 
 # Device-Specific Services
@@ -52,11 +52,13 @@ fi
 
 # For swan1-w28(rk3568) board: USB power and switch control
 if [[ "${FDT_FILE}" == "rk3568-swan1-w28.dtb" ]]; then
-    # GPIO operations are critical, but we also add error suppression.
-    gpioset 0 21=1 >/dev/null 2>&1
-    gpioset 3 20=1 >/dev/null 2>&1
-    gpioset 4 21=1 >/dev/null 2>&1
-    gpioset 4 22=1 >/dev/null 2>&1
+    (
+        # GPIO operations are critical, but we also add error suppression.
+        gpioset 0 21=1 >/dev/null 2>&1
+        gpioset 3 20=1 >/dev/null 2>&1
+        gpioset 4 21=1 >/dev/null 2>&1
+        gpioset 4 22=1 >/dev/null 2>&1
+    ) &
     log_message "USB power control GPIOs set for Swan1-w28."
 fi
 
@@ -66,7 +68,7 @@ if [[ "${FDT_FILE}" =~ ^(rk3588-smart-am60\.dtb|rk3588s-orangepi-5b\.dtb)$ ]]; t
     # The background command (&) won't affect the script's exit code.
     (
         rfkill block all
-        chmod a+x /lib/firmware/ap6276p/brcm_patchram_plus1 >/dev/null 2>&1 &
+        chmod a+x /lib/firmware/ap6276p/brcm_patchram_plus1 >/dev/null 2>&1
         sleep 2
         rfkill unblock all
         /lib/firmware/ap6276p/brcm_patchram_plus1 --enable_hci --no2bytes --use_baudrate_for_download --tosleep 200000 --baudrate 1500000 --patchram /lib/firmware/ap6275p/BCM4362A2.hcd /dev/ttyS9 &
@@ -98,7 +100,7 @@ fi
 # General System Services
 
 # Restart ssh service
-mkdir -p -m0755 /var/run/sshd >/dev/null 2>&1
+mkdir -p -m0755 /var/run/sshd >/dev/null 2>&1 || true
 if [[ -f "/etc/init.d/ssh" ]]; then
     (sleep 5 && /etc/init.d/ssh restart >/dev/null 2>&1) &
     log_message "SSH service restart attempted."
@@ -110,12 +112,22 @@ if [[ -x "/usr/sbin/balethirq.pl" ]]; then
     log_message "Network optimization service (balethirq.pl) execution attempted."
 fi
 
-# Led display control
-openvfd_enable="no"
-openvfd_boxid="15"
-if [[ "${openvfd_enable}" == "yes" && -n "${openvfd_boxid}" && -x "/usr/sbin/armbian-openvfd" ]]; then
-    (armbian-openvfd "${openvfd_boxid}") &
-    log_message "OpenVFD service execution attempted."
+# Led display control, Only for Amlogic devices (meson-*) with valid boxid.
+openvfd_enable="no"  # yes or no, set to "yes" to enable OpenVFD service.
+openvfd_boxid="15"   # Set the boxid according to your device. Refer to the documentation for details.
+openvfd_restart="no" # yes or no, set to "yes" to restart the OpenVFD service.
+if [[ "${openvfd_boxid}" != "0" && "${FDT_FILE}" =~ ^meson- ]]; then
+    (
+        # Start OpenVFD service
+        [[ "${openvfd_enable}" == "yes" ]] && armbian-openvfd "${openvfd_boxid}" >/dev/null 2>&1
+        # Some devices require a restart to clear 'BOOT' and related messages
+        [[ "${openvfd_restart}" == "yes" ]] && {
+            armbian-openvfd "0" >/dev/null 2>&1
+            sleep 3
+            armbian-openvfd "${openvfd_boxid}" >/dev/null 2>&1
+        }
+        log_message "OpenVFD service execution attempted."
+    ) &
 fi
 
 # For vplus(Allwinner h6) led color lights
@@ -137,11 +149,18 @@ if [[ -x "/usr/bin/oes_sata_leds.sh" ]]; then
 fi
 
 # For pveproxy startup service
-if [[ -n "$(dpkg -l | awk '{print $2}' | grep -w "^pve-manager$")" ]]; then
+if [[ -n "$(dpkg -l | awk '{print $2}' | grep -w "^pve-manager$" || true)" ]]; then
     # Restarting systemd services can sometimes fail during early boot.
-    (systemctl restart pveproxy) &
+    (systemctl restart pveproxy >/dev/null 2>&1) &
     log_message "PVE proxy service restart attempted."
 fi
+
+# Maximize root partition size
+todo_rootfs_resize="/root/.no_rootfs_resize"
+[[ -f "${todo_rootfs_resize}" && "$(cat ${todo_rootfs_resize} 2>/dev/null | xargs)" == "yes" ]] && {
+    armbian-tf >/dev/null 2>&1 &
+    log_message "Root partition resized successfully."
+}
 
 # Finalization
 log_message "All custom services have been processed."

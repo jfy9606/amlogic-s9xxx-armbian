@@ -105,6 +105,7 @@ GitHub Actions is a service launched by Microsoft that provides a virtual server
     - [12.17 How to Solve the Issue of No Sound in the Bullseye Version](#1217-how-to-solve-the-issue-of-no-sound-in-the-bullseye-version)
     - [12.18 How to build the boot.scr file](#1218-how-to-build-the-bootscr-file)
     - [12.19 How to Enable Remote Desktop and Modify the Default Port](#1219-how-to-enable-remote-desktop-and-modify-the-default-port)
+    - [12.20 TCP Congestion Control Optimization Guide](#1220-tcp-congestion-control-optimization-guide)
 
 ## 1. Register your own Github account
 
@@ -584,11 +585,12 @@ armbian-update
 | -u | Automatic | stable/flippy/beta/rk3588/rk35xx/h6 | Set the suffix of the used kernel's [tags](https://github.com/ophub/kernel/releases) |
 | -k | Latest Version | Kernel Version | Set the [Kernel Version](https://github.com/ophub/kernel/releases/tag/kernel_stable) |
 | -b | yes | yes/no | Automatically backup the kernel currently in use when updating the kernel |
+| -d | tar | tar/deb | Set the type of kernel to download. If you need to compile custom drivers, it is recommended to install the `deb` package. |
 | -m | no | yes/no | Use the mainline u-boot |
 | -s | None | None/DiskName | [SOS] Restore the system kernel in eMMC/NVMe/sdX and other disks |
 | -h | None | None | View the usage help |
 
-Example: `armbian-update -k 5.15.50 -u stable`
+Example: `armbian-update -k 5.15 -u stable -d deb`
 
 When specifying the kernel version number through the `-k` parameter, you can accurately specify the specific version number, such as: `armbian-update -k 5.15.50`, or you can specify the kernel series vaguely, such as: `armbian-update -k 5.15`, when vaguely specifying, it will automatically use the latest version of the specified series.
 
@@ -615,15 +617,20 @@ armbian-update -s /dev/sda
 armbian-update -s
 ```
 
-If your network access to github.com is poor and you can't update online, you can manually download the kernel, upload it to any directory of the Armbian system, and enter the kernel directory to execute `armbian-update` for local installation. If there's a complete set of kernel files in the current directory, it will use the kernel from the current directory for the update (the four kernel files needed for the update are `header-xxx.tar.gz`, `boot-xxx.tar.gz`, `dtb-xxx.tar.gz`, `modules-xxx.tar.gz`. Other kernel files are not necessary and their presence does not affect the update. The system can accurately identify needed kernel files). You can freely update among the optional kernels supported by the device, such as updating from kernel 6.6.12 to kernel 5.15.50.
+If you encounter network connectivity issues with github.com and cannot download updates online, you can manually download the kernel files, upload them to any directory on your Armbian system, navigate to that directory, and execute `armbian-update` to perform a local installation. If a complete set of kernel files is detected in the current directory, the system will prioritize using the local kernel for the update. The kernel is available in two formats: `tar` and `deb`. The 4 required files for each are as follows:
 
-Custom options set by `-r`/`-u`/`-b` parameters can be permanently written into the relevant parameters in the individual configuration file `/etc/ophub-release`, to avoid entering it each time. The corresponding settings are:
+- The 4 required files for `tar` format updates are: `header-xxx.tar.gz`, `boot-xxx.tar.gz`, `dtb-xxx.tar.gz`, and `modules-xxx.tar.gz`.
+- The 4 required files for `deb` format updates are: `linux-image-xxx.deb`, `linux-dtb-xxx.deb`, `linux-headers-xxx.deb`, and `linux-libc-dev-xxx.deb`.
+- Other kernel files are not required; their presence will not affect the update process, as the system can accurately identify the necessary files. You can freely switch between any supported kernel versions, such as changing from kernel 6.6.12 to 5.15.50.
+
+Custom options set by `-r`/`-u`/`-b`/`-d` parameters can be permanently written into the relevant parameters in the individual configuration file `/etc/ophub-release`, to avoid entering it each time. The corresponding settings are:
 
 ```shell
 # Assign values to custom parameters
 -r  :  KERNEL_REPO='ophub/kernel'
 -u  :  KERNEL_TAGS='stable'
 -b  :  KERNEL_BACKUP='yes'
+-d  :  DOWNLOAD_TYPE='deb'
 ```
 
 ## 11. Installing Common Software
@@ -1728,3 +1735,19 @@ sudo nano /etc/xrdp/xrdp.ini
 port=5000
 ```
 
+### 12.20 TCP Congestion Control Optimization Guide
+
+Different network stack configurations are recommended based on device performance to ensure the best user experience. Please configure your device according to its hardware capabilities by editing `/etc/sysctl.conf` and modifying (or adding) the following lines:
+
+- Gigabit Devices (High Performance/Modern Arch): The `fq + bbr` combination is recommended to maximize throughput and improve packet loss resilience.
+- 100Mbps Devices (Low Performance/Legacy Arch): The `fq_codel + cubic` combination is suggested to minimize CPU load and maintain low-latency stability.
+
+```shell
+# Option A: Recommended for Gigabit/High Performance Devices
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+
+# Option B: Recommended for 100Mbps/Low Performance Devices
+# net.core.default_qdisc = fq_codel
+# net.ipv4.tcp_congestion_control = cubic
+```

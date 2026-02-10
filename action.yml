@@ -283,36 +283,9 @@ runs:
             [[ -n "${{ inputs.ccache_clear }}" ]] && make_command="${make_command} -c ${{ inputs.ccache_clear }}"
             read -r -a make_args <<< "${make_command}"
 
-            # Choose Ubuntu or a Docker container to compile the kernel.
-            if [[ "$(uname -m)" == "aarch64" && -n "${docker_compile}" ]]; then
-                echo -e "🐋 Using the Armbian Docker image to compile the kernel."
-
-                echo -e "🌐 Synchronize server time."
-                sudo ntpdate ntp.ubuntu.com 0.pool.ntp.org || true
-
-                echo -e "🐬 Restarting Docker container..."
-                sudo docker restart ${docker_container} >/dev/null && sleep 5
-
-                echo -e "♻️ Syncing scripts in Docker container..."
-                docker exec -i "${docker_container}" bash "${docker_script}" -u
-
-                echo -e "✅ Injecting custom configs into Docker container..."
-                [[ -d "${config_filepath}" ]] && docker cp ${config_filepath}/. "${docker_container}":/opt/kernel/compile-kernel/tools/config/
-                docker exec -i "${docker_container}" ls -Alh /opt/kernel/compile-kernel/tools/config/ || true
-
-                echo -e "✳️ Injecting custom patches into Docker container..."
-                [[ -d "${custom_kernel_patch}" ]] && docker cp ${custom_kernel_patch}/. "${docker_container}":/opt/kernel/compile-kernel/tools/patch/
-                docker exec -i "${docker_container}" ls -Alh /opt/kernel/compile-kernel/tools/patch/ || true
-
-                echo -e "🐳 Starting native kernel compilation in Docker container..."
-                docker exec -i "${docker_container}" bash "${docker_script}" "${make_args[@]}"
-            else
-                echo -e "🖥️ Starting kernel cross-compilation on host system..."
-                sudo ./recompile "${make_args[@]}"
-            fi
-
-            cd ${{ github.action_path }}
-            output_tags="$(ls -l ${PWD}/${kernel_outpath}/*.tar.gz 2>/dev/null | awk '{print $9}' | grep -oE '[1-9][0-9]{0,2}\.[0-9]{1,3}\.[0-9]+' | xargs | tr "[ ]" "_")"
+            cd ${{ inputs.docker_hostpath }}
+            kernel_outpath="compile-kernel/output"
+            output_tags="$(ls -l ${kernel_outpath}/*.tar.gz 2>/dev/null | awk '{print $9}' | grep -oP '\d+\.\d+\.\d+' | sort -u | xargs | tr "[ ]" "_")"
             echo -e "Output environment variables."
             echo "PACKAGED_OUTPUTTAGS=${output_tags}" >> ${GITHUB_ENV}
             echo "PACKAGED_OUTPUTPATH=${PWD}/${kernel_outpath}" >> ${GITHUB_ENV}
