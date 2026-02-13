@@ -68,7 +68,7 @@ ophub_release_file="/etc/ophub-release"
 # Set the default for downloading kernel sources from github.com
 repo_owner="unifreq"
 repo_branch="main"
-build_kernel=("6.1.y" "6.12.y")
+build_kernel=("6.12.y" "6.18.y")
 all_kernel=("5.10.y" "5.15.y" "6.1.y" "6.6.y" "6.12.y" "6.18.y")
 # Set whether to use the latest kernel, options: [ true / false ]
 auto_kernel="true"
@@ -175,7 +175,7 @@ init_var() {
                 config_download="true"
                 shift 2
             else
-                error_msg "Invalid -g parameter [ ${2} ]!"
+                error_msg "Invalid -f parameter [ ${2} ]!"
             fi
             ;;
         -a | --AutoKernel)
@@ -189,6 +189,7 @@ init_var() {
         -n | --customName)
             if [[ -n "${2}" ]]; then
                 custom_name="${2// /}"
+                [[ -n "${custom_name}" ]] || custom_name="-ophub"
                 [[ "${custom_name:0:1}" != "-" ]] && custom_name="-${custom_name}"
                 shift 2
             else
