@@ -30,6 +30,8 @@
 # download_kernel    : Download the kernel
 # check_kernel       : Check kernel files(.deb and .tar.gz)
 # backup_kernel      : Backup current kernel
+# backup_fdtfile     : Backup current dtb files
+# restore_fdtfile    : Restore dtb files from backup
 # update_tar_kernel  : Update the kernel in .tar.gz format
 # update_deb_kernel  : Update the kernel in .deb format
 # update_uboot       : Update the uboot
@@ -148,12 +150,23 @@ init_var() {
 
     # Check release file
     [[ -f "${ophub_release_file}" ]] || error_msg "missing [ ${ophub_release_file} ] file."
+
     # Adjust parameter name
     sed -i "s|^KERNEL_BRANCH=|KERNEL_TAGS=|g" ${ophub_release_file}
+
+    # Attempt to detect the FDT file from common boot configuration files
+    FDTFILE=""
+    [[ -f "/boot/uEnv.txt" ]] && { FDTFILE="$(grep -E '^FDT=.*\.dtb$' /boot/uEnv.txt | sed -E 's#.*/##' || true)"; }
+    [[ -z "${FDTFILE}" && -f "/boot/extlinux/extlinux.conf" ]] && { FDTFILE="$(grep -E '/dtb/.*\.dtb$' /boot/extlinux/extlinux.conf | sed -E 's#.*/##' || true)"; }
+    [[ -z "${FDTFILE}" && -f "/boot/armbianEnv.txt" ]] && { FDTFILE="$(grep -E '^fdtfile=.*\.dtb$' /boot/armbianEnv.txt | sed -E 's#.*/##' || true)"; }
+    # Update FDT file records information
+    [[ -n "${FDTFILE}" ]] && sed -i "s|^FDTFILE=.*|FDTFILE='${FDTFILE}'|g" ${ophub_release_file}
+
     # Get values
     source "${ophub_release_file}"
     PLATFORM="${PLATFORM}"
     MODEL_ID="${MODEL_ID}"
+    FDTFILE="${FDTFILE}"
     UBOOT_OVERLOAD="${UBOOT_OVERLOAD}"
     MAINLINE_UBOOT="${MAINLINE_UBOOT}"
     KERNEL_REPO="${KERNEL_REPO}"
@@ -164,6 +177,8 @@ init_var() {
 
     # Check the platform variable
     [[ -z "${PLATFORM}" ]] && error_msg "[ PLATFORM ] is missing, stop updating the kernel."
+    # Check the FDT file variable
+    [[ -z "${FDTFILE}" ]] && error_msg "[ FDTFILE ] is missing, stop updating the kernel."
     # Check kernel download type
     if [[ -n "${DOWNLOAD_TYPE}" ]]; then
         download_type="${DOWNLOAD_TYPE}"
@@ -173,7 +188,8 @@ init_var() {
     fi
     # Check kernel signature
     [[ -n "${KERNEL_SIGNATURE}" ]] || {
-        echo "KERNEL_SIGNATURE='${kernel_uname#*-}'" >>${ophub_release_file}
+        KERNEL_SIGNATURE="${kernel_uname#*-}"
+        echo "KERNEL_SIGNATURE='${KERNEL_SIGNATURE}'" >>${ophub_release_file}
     }
 
     # Set the kernel packages
@@ -310,16 +326,19 @@ search_kernel() {
     cd ${current_path}
     echo -e "${STEPS} Start searching kernel version..."
 
+    # Set the kernel save path and clear old files
+    kernel_save_path="/var/cache/apt/archives/ophub"
+    [[ -d "${kernel_save_path}" ]] || mkdir -p "${kernel_save_path}"
+    rm -rf "${kernel_save_path}"/*
     # Set the kernel path
-    kernel_path="$(mktemp -d)"
+    kernel_path="${kernel_save_path}"
     local_found="no"
 
-    # Check for local .deb files first, e.g: linux-image-ophub_6.12.69-1_arm64.deb -> 6.12.69
+    # Check for local .deb files first, e.g: linux-image_6.1.164-1-ophub_arm64.deb -> 6.1.164
     if [[ "$(find . -maxdepth 1 -type f -name "*.deb" 2>/dev/null | wc -l)" -ge "3" ]]; then
-        target_file="$(ls linux-image-*.deb 2>/dev/null | head -n 1)"
+        target_file="$(ls linux-image_*.deb 2>/dev/null | head -n 1)"
         if [[ -n "${target_file}" ]]; then
             inputs_kernel="$(echo "${target_file}" | grep -oP '(?<=_)\d+\.\d+\.\d+(?=-)' || echo "${target_file}" | grep -oP '\d+\.\d+\.\d+')"
-            file_ext=".deb"
             download_type="deb"
             local_found="yes"
         fi
@@ -329,7 +348,6 @@ search_kernel() {
         target_file="$(ls boot-*.tar.gz 2>/dev/null | head -n 1)"
         if [[ -n "${target_file}" ]]; then
             inputs_kernel="$(echo "${target_file}" | grep -oP '(?<=boot-)\d+\.\d+\.\d+')"
-            file_ext=".tar.gz"
             download_type="tar"
             local_found="yes"
         fi
@@ -340,7 +358,7 @@ search_kernel() {
         echo -e "${INFO} Found local kernel. Version: [ ${inputs_kernel} ] Type: [ ${download_type} ]"
 
         [[ -f "sha256sums" ]] && mv -f sha256sums -t "${kernel_path}"
-        mv -f *"${file_ext}" -t "${kernel_path}"
+        mv -f *".${download_type}"* -t "${kernel_path}"
         [[ "${?}" -ne "0" ]] && error_msg "Failed to move local kernel files."
 
     else
@@ -375,8 +393,6 @@ search_kernel() {
                 # If found, update global variables and stop searching
                 if [[ -n "${latest_kernel}" ]]; then
                     download_type="${type}"
-                    # Set the file extension for later verification
-                    [[ "${type}" == "deb" ]] && file_ext=".deb" || file_ext=".tar.gz"
                     break
                 fi
             done
@@ -426,6 +442,10 @@ download_kernel() {
         kernel_path="${kernel_path}/deb-${inputs_kernel}"
     fi
 
+    # Set permissions for directories and files separately
+    find "${kernel_path}" -type d -exec chmod 755 {} \;
+    find "${kernel_path}" -type f -exec chmod a+r {} \;
+
     sync && echo ""
 }
 
@@ -436,20 +456,18 @@ check_kernel() {
 
     if [[ "${download_type}" == "deb" ]]; then
         # Find .deb kernel file
-        target_file="$(ls linux-image-*.deb 2>/dev/null | head -n 1)"
+        target_file="$(ls linux-image_*.deb 2>/dev/null | head -n 1)"
         [[ -z "${target_file}" ]] && error_msg "Kernel .deb file not found in [ ${kernel_path} ]"
 
-        # Extract kernel name: linux-image-ophub_6.12.69-1_arm64.deb -> ophub_6.12.69-1_arm64
-        kernel_name="$(echo "${target_file}" | grep -oP '(?<=linux-image-).*?(?=\.deb)')"
-        # Extract kernel signature: ophub_6.12.69-1_arm64 -> ophub
-        kernel_signature="${kernel_name%%_*}"
-        # Extract verify name: linux-image-ophub_6.12.69-1_arm64.deb -> 6.12.69-ophub
+        # Extract kernel name: linux-image_6.1.164-1-ophub_arm64.deb -> 6.1.164-1-ophub_arm64
+        kernel_name="$(echo "${target_file}" | grep -oP '(?<=linux-image_).*?(?=\.deb)')"
+        # Extract kernel signature: 6.1.164-1-ophub_arm64 -> ophub
+        kernel_signature="$(echo "${kernel_name}" | sed -E 's/^.*-([^-_]+)_.*/\1/')"
+        # Extract verify name: linux-image_6.1.164-1-ophub_arm64.deb -> 6.12.69-ophub
         verify_name="$(
             echo "${target_file}" |
-                grep -oP '(?<=linux-image-).*?(?=-\d+_arm64\.deb)' | {
-                read name
-                echo "${name#*_}-${name%%_*}"
-            }
+                grep -oP '(?<=linux-image_).*?(?=_arm64\.deb)' |
+                awk -F'-' '{print $1"-"$NF}'
         )"
 
         # Set file list for verification
@@ -498,7 +516,11 @@ check_kernel() {
         local i="1"
         for prefix in "${check_list[@]}"; do
             # Construct filename based on prefix and kernel name
-            tmp_file="${prefix}-${kernel_name}${file_ext}"
+            if [[ "${download_type}" == "deb" ]]; then
+                tmp_file="${prefix}_${kernel_name}.deb"
+            else
+                tmp_file="${prefix}-${kernel_name}.tar.gz"
+            fi
 
             # Check if file exists
             if [[ ! -s "${tmp_file}" ]]; then
@@ -508,7 +530,7 @@ check_kernel() {
                     ((i++))
                     continue
                 else
-                    error_msg "The [ ${tmp_file} ] file is missing."
+                    error_msg "(${i}/4) The [ ${tmp_file} ] file is missing."
                 fi
             fi
 
@@ -516,7 +538,7 @@ check_kernel() {
             tmp_sha256sum="$(sha256sum "${tmp_file}" | awk '{print $1}')"
             tmp_checkcode="$(grep "${tmp_file}" "${sha256sums_file}" | awk '{print $1}')"
 
-            [[ "${tmp_sha256sum}" == "${tmp_checkcode}" ]] || error_msg "${tmp_file}: sha256sum verification failed."
+            [[ "${tmp_sha256sum}" == "${tmp_checkcode}" ]] || error_msg "(${i}/4) ${tmp_file}: sha256sum verification failed."
             echo -e "${INFO} (${i}/4) Verification of [ ${tmp_file} ] succeeded."
             ((i++))
         done
@@ -596,6 +618,29 @@ backup_kernel() {
     sync && echo ""
 }
 
+backup_fdtfile() {
+    # Check if the dtb backup directory exists, if not, create it
+    [[ -d "${backup_path}/dtb" ]] || mkdir -p ${backup_path}/dtb
+
+    # Backup the current dtb files
+    [[ -f "/boot/dtb/${PLATFORM}/${FDTFILE}" ]] && {
+        cp -f /boot/dtb/${PLATFORM}/${FDTFILE} ${backup_path}/dtb/
+        [[ "${?}" -ne "0" ]] && error_msg "Failed to backup dtb files."
+        echo -e "${INFO} Current dtb file has been backed up to [ ${backup_path}/dtb/${FDTFILE} ]."
+    }
+}
+
+restore_fdtfile() {
+    # Restore the dtb files if the backup exists and the current dtb file is missing
+    if [[ -f "${backup_path}/dtb/${FDTFILE}" && ! -f "/boot/dtb/${PLATFORM}/${FDTFILE}" ]]; then
+        cp -f ${backup_path}/dtb/${FDTFILE} /boot/dtb/${PLATFORM}/
+        [[ "${?}" -ne "0" ]] && error_msg "Failed to restore dtb files."
+        echo -e "${INFO} Current dtb file has been restored."
+    elif [[ -f "/boot/dtb/${PLATFORM}/${FDTFILE}" ]]; then
+        echo -e "${INFO} The new kernel already contains the required dtb file, skipping restoration."
+    fi
+}
+
 # Update the .deb kernel
 update_deb_kernel() {
     cd ${kernel_path}
@@ -604,16 +649,19 @@ update_deb_kernel() {
     # Check if the kernel package is in deb format
     [[ "${download_type}" == "deb" ]] || error_msg "The kernel package is not in deb format."
 
+    # Backup the current dtb files
+    backup_fdtfile
+
     # Identify the .deb files that need to be installed
     local n="0"
     local install_files=""
     for prefix in "${kernel_deb_list[@]}"; do
-        local f="$(ls ${prefix}-*.deb 2>/dev/null | head -n 1)"
+        local f="$(ls ${prefix}_*.deb 2>/dev/null | head -n 1)"
         if [[ -n "${f}" ]]; then
             ((n++))
-            install_files="${install_files} ${f}"
+            install_files="${install_files} ./${f}"
         else
-            error_msg "Kernel deb package not found: [ ${prefix}-*.deb ]"
+            error_msg "Kernel deb package not found: [ ${prefix}_*.deb ]"
         fi
     done
 
@@ -623,11 +671,16 @@ update_deb_kernel() {
         local i="1"
         install_failed=0
         for pkg in ${install_files}; do
-            dpkg -i "${pkg}" >/dev/null 2>&1
+            # Install the package and capture the output log for error analysis if installation fails
+            pkg_log="$(apt-get install -y --reinstall --allow-downgrades "${pkg}" 2>&1)"
+
+            # Check the installation result
             if [[ "${?}" -eq "0" ]]; then
-                echo -e "${INFO} (${i}/${n}) Installation of [ ${pkg} ] succeeded."
+                echo -e "${INFO} (${i}/${n}) Installation of [ ${pkg#./} ] succeeded."
             else
-                echo -e "${PROMPT} (${i}/${n}) Installation of [ ${pkg} ] failed."
+                echo -e "${PROMPT} (${i}/${n}) Installation of [ ${pkg#./} ] failed. Error details:"
+                # Display the last 5 lines of the log to provide context on the failure without overwhelming the user
+                echo "${pkg_log}" | tail -n 5
                 install_failed=1
             fi
             ((i++))
@@ -636,7 +689,17 @@ update_deb_kernel() {
         # If any package installation failed, attempt to fix broken dependencies
         if [[ "${install_failed}" -ne "0" ]]; then
             echo -e "${INFO} Fix packages installation status..."
+
+            # First, try to fix broken dependencies which might be causing the installation failure
             apt-get install -f -y >/dev/null 2>&1
+            # Then, try to reinstall the kernel packages again to ensure they are properly installed
+            apt-get install -y --reinstall --allow-downgrades ${install_files} >/dev/null 2>&1
+            # Finally, verify the installation status of the kernel packages
+            if [[ "${?}" -eq "0" ]]; then
+                echo -e "${INFO} Package installation status has been fixed and verified."
+            else
+                error_msg "Failed to fix package installation status. Packages might be corrupted."
+            fi
         fi
     else
         error_msg "Missing kernel deb installation packages."
@@ -647,8 +710,11 @@ update_deb_kernel() {
     sed -i "s|^DOWNLOAD_TYPE=.*|DOWNLOAD_TYPE='${download_type}'|g" ${ophub_release_file}
     sed -i "s|^KERNEL_SIGNATURE=.*|KERNEL_SIGNATURE='${kernel_signature}'|g" ${ophub_release_file}
 
+    # Restore the dtb files if necessary
+    restore_fdtfile
+
     # Delete kernel tmpfiles
-    rm -f *${kernel_name}*.deb sha256sums
+    rm -rf ${kernel_save_path}/*
 
     sync && echo ""
 }
@@ -660,6 +726,9 @@ update_tar_kernel() {
 
     # Check if the kernel package is in tar.gz format
     [[ "${download_type}" == "tar" ]] || error_msg "The kernel package is not in tar.gz format."
+
+    # Backup the current dtb files
+    backup_fdtfile
 
     # Delete the current kernel files
     rm -f /boot/config-* /boot/initrd.img-* /boot/System.map-* /boot/uInitrd-* /boot/vmlinuz-*
@@ -705,8 +774,11 @@ update_tar_kernel() {
     sed -i "s|^DOWNLOAD_TYPE=.*|DOWNLOAD_TYPE='${download_type}'|g" ${ophub_release_file}
     sed -i "s|^KERNEL_SIGNATURE=.*|KERNEL_SIGNATURE='${kernel_signature}'|g" ${ophub_release_file}
 
+    # Restore the dtb files if necessary
+    restore_fdtfile
+
     # Delete kernel tmpfiles
-    rm -f *${kernel_name}*.tar.gz sha256sums
+    rm -rf ${kernel_save_path}/*
 
     sync && echo ""
 }

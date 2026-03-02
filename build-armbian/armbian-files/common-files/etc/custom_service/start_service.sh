@@ -16,10 +16,10 @@
 #
 #========================================================================================
 
-# Custom Service Log - all script output will be logged here.
+# Custom Service Log - all script output will be logged here
 custom_log="/tmp/ophub_start_service.log"
 
-# A helper function for logging with a timestamp.
+# A helper function for logging with a timestamp
 log_message() {
     echo "[$(date +"%Y.%m.%d.%H:%M:%S")] $1" >>"${custom_log}"
 }
@@ -32,26 +32,32 @@ dmesg -n 1 >/dev/null 2>&1 || true
 log_message "Kernel console logging level set to 1 (Panic only)."
 
 # System Identification
-# Set the release check file to identify the device type.
+# Set the release check file to identify the device type
 ophub_release_file="/etc/ophub-release"
-FDT_FILE="" # Initialize FDT_FILE to be empty.
-
-[[ -f "${ophub_release_file}" ]] && { FDT_FILE="$(grep -oE 'meson.*dtb' "${ophub_release_file}" || true)"; }
-[[ -z "${FDT_FILE}" && -f "/boot/uEnv.txt" ]] && { FDT_FILE="$(grep -E '^FDT=.*\.dtb$' /boot/uEnv.txt | sed -E 's#.*/##' || true)"; }
-[[ -z "${FDT_FILE}" && -f "/boot/extlinux/extlinux.conf" ]] && { FDT_FILE="$(grep -E '/dtb/.*\.dtb$' /boot/extlinux/extlinux.conf | sed -E 's#.*/##' || true)"; }
-[[ -z "${FDT_FILE}" && -f "/boot/armbianEnv.txt" ]] && { FDT_FILE="$(grep -E '^fdtfile=.*\.dtb$' /boot/armbianEnv.txt | sed -E 's#.*/##' || true)"; }
-log_message "Detected FDT file: ${FDT_FILE:-'not found'}"
+[[ -f "${ophub_release_file}" ]] && source "${ophub_release_file}" 2>/dev/null || true
+FDTFILE="${FDTFILE:-no_found.dtb}"
+log_message "Detected FDT file: ${FDTFILE}"
 
 # Device-Specific Services
 
+# Add rknpu module to the system module load list
+ophub_load_conf="/etc/modules-load.d/ophub-load-list.conf"
+[[ -f "${ophub_load_conf}" ]] || touch "${ophub_load_conf}"
+if modinfo rknpu >/dev/null 2>&1; then
+    grep -q -x "rknpu" "${ophub_load_conf}" 2>/dev/null || echo "rknpu" >>"${ophub_load_conf}"
+else
+    grep -q -x "rknpu" "${ophub_load_conf}" 2>/dev/null && sed -i '/^rknpu$/d' "${ophub_load_conf}"
+fi
+log_message "Adjust the rknpu module in the system module load list"
+
 # For Tencent Aurora 3Pro (s905x3-b) box: Load Bluetooth module
-if [[ "${FDT_FILE}" == "meson-sm1-skyworth-lb2004-a4091.dtb" ]]; then
-    modprobe btmtksdio >/dev/null 2>&1 &
+if [[ "${FDTFILE}" == "meson-sm1-skyworth-lb2004-a4091.dtb" ]]; then
+    grep -q -x "btmtksdio" "${ophub_load_conf}" 2>/dev/null || echo "btmtksdio" >>"${ophub_load_conf}"
     log_message "Attempted to load btmtksdio module for Tencent-Aurora-3Pro."
 fi
 
 # For swan1-w28(rk3568) board: USB power and switch control
-if [[ "${FDT_FILE}" == "rk3568-swan1-w28.dtb" ]]; then
+if [[ "${FDTFILE}" == "rk3568-swan1-w28.dtb" ]]; then
     (
         # GPIO operations are critical, but we also add error suppression.
         gpioset 0 21=1 >/dev/null 2>&1
@@ -63,7 +69,7 @@ if [[ "${FDT_FILE}" == "rk3568-swan1-w28.dtb" ]]; then
 fi
 
 # For smart-am60(rk3588)/orangepi-5b(rk3588s) board: Bluetooth control
-if [[ "${FDT_FILE}" =~ ^(rk3588-smart-am60\.dtb|rk3588s-orangepi-5b\.dtb)$ ]]; then
+if [[ "${FDTFILE}" =~ ^(rk3588-smart-am60\.dtb|rk3588s-orangepi-5b\.dtb)$ ]]; then
     # This is a sequence of commands, with the last one running in the background.
     # The background command (&) won't affect the script's exit code.
     (
@@ -77,7 +83,7 @@ if [[ "${FDT_FILE}" =~ ^(rk3588-smart-am60\.dtb|rk3588s-orangepi-5b\.dtb)$ ]]; t
 fi
 
 # For nsy-g16-plus/nsy-g68-plus/bdy-g18-pro board
-if [[ "${FDT_FILE}" =~ ^(rk3568-nsy-g16-plus\.dtb|rk3568-nsy-g68-plus\.dtb|rk3568-bdy-g18-pro\.dtb)$ ]]; then
+if [[ "${FDTFILE}" =~ ^(rk3568-nsy-g16-plus\.dtb|rk3568-nsy-g68-plus\.dtb|rk3568-bdy-g18-pro\.dtb)$ ]]; then
     (
         # Wait for network to be up
         sleep 10
@@ -94,7 +100,7 @@ if [[ "${FDT_FILE}" =~ ^(rk3568-nsy-g16-plus\.dtb|rk3568-nsy-g68-plus\.dtb|rk356
             ethtool -K eth0 tso off gso off gro off tx off rx off >/dev/null 2>&1
         fi
     ) &
-    log_message "Network optimizations for ${FDT_FILE} applied."
+    log_message "Network optimizations for ${FDTFILE} applied."
 fi
 
 # General System Services
@@ -116,7 +122,7 @@ fi
 openvfd_enable="no"  # yes or no, set to "yes" to enable OpenVFD service.
 openvfd_boxid="15"   # Set the boxid according to your device. Refer to the documentation for details.
 openvfd_restart="no" # yes or no, set to "yes" to restart the OpenVFD service.
-if [[ "${openvfd_boxid}" != "0" && "${FDT_FILE}" =~ ^meson- ]]; then
+if [[ "${openvfd_boxid}" != "0" && "${FDTFILE}" =~ ^meson- ]]; then
     (
         # Start OpenVFD service
         [[ "${openvfd_enable}" == "yes" ]] && armbian-openvfd "${openvfd_boxid}" >/dev/null 2>&1
