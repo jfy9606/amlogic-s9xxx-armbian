@@ -81,7 +81,7 @@ on:
         type: choice
         options:
           - -ophub
-          - -yourname
+          - -jfy9606
 
 env:
   TZ: Etc/UTC
