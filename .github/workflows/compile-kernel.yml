@@ -165,7 +165,7 @@ jobs:
             kernel-${{ inputs.kernel_toolchain }}-${{ inputs.kernel_version }}-
 
       - name: Compile the kernel [ ${{ inputs.kernel_version }} ]
-        uses: ophub/amlogic-s9xxx-armbian@main
+        uses: jfy9606/amlogic-s9xxx-armbian@main
         if: ${{ steps.disk.outputs.status == 'success' && !cancelled() }}
         with:
           build_target: kernel
@@ -178,7 +178,7 @@ jobs:
           kernel_toolchain: ${{ inputs.kernel_toolchain }}
           ccache_clear: ${{ inputs.ccache_clear }}
           docker_hostpath: /builder
-          docker_image: ophub/armbian-${{ inputs.docker_image }}:arm64
+          docker_image: jfy9606/armbian-${{ inputs.docker_image }}:arm64
 
       - name: Upload Kernel to Release
         uses: ncipollo/release-action@main
