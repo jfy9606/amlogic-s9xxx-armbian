@@ -1,5 +1,5 @@
 name: "Rebuild Armbian and Kernel"
-author: "https://github.com/ophub/amlogic-s9xxx-armbian"
+author: "https://github.com/jfy9606/amlogic-s9xxx-armbian"
 description: "Support Amlogic, Rockchip and Allwinner boxes."
 inputs:
   # Select build target
@@ -101,7 +101,15 @@ inputs:
     description: "Set whether to clear the cache"
     required: false
     default: "false"
-
+  docker_hostpath:
+    description: "Set the docker host path for kernel compilation"
+    required: false
+    default: ""
+  docker_image:
+    description: "Set the docker image for compilation"
+    required: false
+    default: ""
+    
 runs:
   using: "composite"
   steps:
@@ -258,7 +266,7 @@ runs:
             # You can use a Docker container on an arm64 server to compile the kernel natively with Armbian.
             # Recommended Docker repository: https://hub.docker.com/u/ophub
             # Set the Docker container name and script path
-            docker_container="armbian-ophub"
+            docker_container="armbian-jfy9606"
             docker_script="/usr/sbin/armbian-kernel"
             echo -e "Check the system runtime environment."
             if command -v docker >/dev/null 2>&1; then
