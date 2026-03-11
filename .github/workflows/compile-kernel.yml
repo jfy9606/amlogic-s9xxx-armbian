@@ -82,6 +82,36 @@ on:
         options:
           - -ophub
           - -jfy9606
+      kernel_config:
+        description: "Set the path of kernel .config"
+        required: false
+        default: "false"
+        type: string
+      kernel_patch:
+        description: "Set the directory for kernel patches"
+        required: false
+        default: "false"
+        type: string
+      auto_patch:
+        description: "Set whether to use kernel patches"
+        required: false
+        default: false
+        type: boolean
+      compress_format:
+        description: "Set the initrd compression format"
+        required: false
+        default: "xz"
+        type: choice
+        options:
+          - xz
+          - gzip
+          - zstd
+          - lzma
+      silent_log:
+        description: "Set whether to use silent log output"
+        required: false
+        default: false
+        type: boolean
 
 env:
   TZ: Etc/UTC
@@ -176,6 +206,11 @@ jobs:
           kernel_package: ${{ inputs.kernel_package }}
           kernel_sign: ${{ inputs.kernel_sign }}
           kernel_toolchain: ${{ inputs.kernel_toolchain }}
+          kernel_config: ${{ inputs.kernel_config }}
+          kernel_patch: ${{ inputs.kernel_patch }}
+          auto_patch: ${{ inputs.auto_patch }}
+          compress_format: ${{ inputs.compress_format }}
+          silent_log: ${{ inputs.silent_log }}
           ccache_clear: ${{ inputs.ccache_clear }}
           docker_hostpath: /builder
           docker_image: jfy9606/armbian-${{ inputs.docker_image }}:arm64
