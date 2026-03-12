@@ -289,7 +289,10 @@ runs:
             [[ -n "${{ inputs.delete_source }}" ]] && make_command="${make_command} -d ${{ inputs.delete_source }}"
             [[ -n "${{ inputs.silent_log }}" ]] && make_command="${make_command} -s ${{ inputs.silent_log }}"
             [[ -n "${{ inputs.ccache_clear }}" ]] && make_command="${make_command} -c ${{ inputs.ccache_clear }}"
+            [[ -n "${{ inputs.docker_hostpath }}" ]] && make_command="${make_command} -h ${{ inputs.docker_hostpath }}"
+            [[ -n "${{ inputs.docker_image }}" ]] && make_command="${make_command} -i ${{ inputs.docker_image }}"
             read -r -a make_args <<< "${make_command}"
+            sudo ./recompile "${make_args[@]}"
 
             cd ${{ inputs.docker_hostpath }}
             kernel_outpath="compile-kernel/output"
