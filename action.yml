@@ -294,7 +294,7 @@ runs:
             read -r -a make_args <<< "${make_command}"
             sudo ./recompile "${make_args[@]}"
 
-            cd ${{ inputs.docker_hostpath }}
+            cd ${{ github.action_path }}
             kernel_outpath="compile-kernel/output"
             output_tags="$(ls -l ${kernel_outpath}/*.tar.gz 2>/dev/null | awk '{print $9}' | grep -oP '\d+\.\d+\.\d+' | sort -u | xargs | tr "[ ]" "_")"
             echo -e "Output environment variables."
