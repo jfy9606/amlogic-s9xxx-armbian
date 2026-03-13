@@ -44,10 +44,18 @@ else
     exit 1
 fi
 
-# Create header package
+# Create header package from kernel source tree
 echo -e "Creating header package..."
 mkdir -p /opt/header
-cd /usr/src/linux-headers-${kernel_outname}
-tar -czf /opt/header/header-${kernel_outname}.tar.gz .
+
+# The kernel source tree is at /opt/linux-kernel
+if [[ -d "/opt/linux-kernel" ]]; then
+    cd /opt/linux-kernel
+    tar -czf /opt/header/header-${kernel_outname}.tar.gz .
+    echo -e "Successfully created header package from /opt/linux-kernel"
+else
+    echo -e "ERROR: Kernel source tree /opt/linux-kernel not found"
+    exit 1
+fi
 
 echo -e "All done in chroot environment."
