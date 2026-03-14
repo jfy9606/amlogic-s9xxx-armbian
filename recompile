@@ -174,7 +174,7 @@ mount_try() {
 }
 
 init_var() {
-    echo -e "${STEPS} Start Initializing Variables..."
+    echo -e "${STEPS} Initializing variables..."
 
     # If it is followed by [ : ], it means that the option requires a parameter value
     local options="k:a:n:m:p:r:t:c:d:s:z:l:g:h:i:"
@@ -638,14 +638,12 @@ chroot_armbian() {
     else
         cp -f ${tag_rootfs}/boot/vmlinuz-${kernel_outname} ${tag_rootfs}/boot/zImage
     fi
-    #echo -e "${INFO} Kernel copy results in the [ ${tag_rootfs}/boot ] directory: \n$(ls -l ${tag_rootfs}/boot) \n"
 
     # Remove current system files for /usr/lib/modules
     rm -rf ${tag_rootfs}/usr/lib/modules/*
     # Copy /usr/lib/modules related files into armbian system
     [[ -d "${tag_rootfs}/usr/lib/modules" ]] && mkdir -p ${tag_rootfs}/usr/lib/modules
     cp -rf ${output_path}/modules/lib/modules/${kernel_outname} -t ${tag_rootfs}/usr/lib/modules
-    #echo -e "${INFO} Kernel copy results in the [ ${tag_rootfs}/usr/lib/modules ] directory: \n$(ls -l ${tag_rootfs}/usr/lib/modules) \n"
 
     cd ${kernel_path}/${local_kernel_path}
 
@@ -681,7 +679,6 @@ chroot_armbian() {
     if [[ "${arch_info}" == "x86_64" ]]; then
         echo -e "${INFO} Copy the [ ${qemu_binary_arm64} ] file to the armbian system..."
         [[ -f "/usr/bin/${qemu_binary_arm64}" ]] && cp -f /usr/bin/${qemu_binary_arm64} ${tag_rootfs}/usr/bin/
-        #echo -e "${INFO} The [ ${qemu_binary_arm64} ] file copy results: \n$(ls -l ${tag_rootfs}/usr/bin/${qemu_binary_arm64}) \n"
     fi
 
     # Copy the /etc/resolv.conf file to the armbian system
@@ -693,7 +690,6 @@ chroot_armbian() {
     echo -e "${INFO} Copy the [ ubuntu_chroot_armbian.sh ] script to the armbian system..."
     cp -f ${script_path}/ubuntu_chroot_armbian.sh ${tag_rootfs}/root
     chmod +x ${tag_rootfs}/root/ubuntu_chroot_armbian.sh
-    #echo -e "${INFO} Kernel copy results in the [ ${tag_rootfs}/root ] directory: \n$(ls -l ${tag_rootfs}/root) \n"
 
     # Enter the armbian system to generate /boot/uInitrd-${kernel_outname} file
     echo -e "${STEPS} Start mounting the armbian system..."
@@ -811,9 +807,6 @@ compile_env() {
             echo -e "${INFO} Skip Rust environment configuration for kernel version [ ${kernel_version} ]"
         fi
     }
-
-    # Make menuconfig
-    #make ${MAKE_SET_STRING} CC="${CC}" LD="${LD}" menuconfig
 
     # Set max process
     PROCESS="$(($(nproc 2>/dev/null || echo 2) - 1))"
