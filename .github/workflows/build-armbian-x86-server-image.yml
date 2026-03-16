@@ -17,12 +17,13 @@ on:
         options:
           - trixie
           - bookworm
+          - resolute
           - noble
           - jammy
       publish_docker:
         description: "Publish Docker image"
         required: false
-        default: "none"
+        default: "ophub/armbian"
         type: choice
         options:
           - ophub/armbian
@@ -32,7 +33,6 @@ env:
   TZ: Etc/UTC
   ROOTFS_SCRIPT: compile-kernel/tools/script/docker/build_armbian_rootfs_file.sh
   MAKE_DOCKER_SH: compile-kernel/tools/script/docker/build_armbian_docker_image.sh
-  DOCKER_OUTPATH: out
 
 jobs:
   build:
@@ -103,7 +103,6 @@ jobs:
         working-directory: /builder
         if: ${{ steps.down.outputs.status == 'success' && !cancelled() }}
         run: |
-          run: |
           # Enable QEMU emulation for ARM cross-compilation
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
           # Compile options reference: https://docs.armbian.com/Developer-Guide_Build-Options
@@ -129,12 +128,20 @@ jobs:
           echo "build_tag=Armbian_${{ inputs.set_release }}_amd64_server_$(date +"%Y.%m")" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
+      - name: Build the Docker image
+        id: makedocker
+        if: ${{ inputs.publish_docker != 'none' && !cancelled() }}
+        run: |
+          chmod +x ${MAKE_DOCKER_SH}
+          ${MAKE_DOCKER_SH} ${{ inputs.set_release }} amd64
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
       - name: Upload Armbian image to Release
         uses: ncipollo/release-action@main
         if: ${{ steps.clean.outputs.status == 'success' && !cancelled() }}
         with:
           tag: ${{ env.build_tag }}
-          artifacts: armbian/*
+          artifacts: "armbian/*,out/*"
           allowUpdates: true
           makeLatest: false
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -146,34 +153,29 @@ jobs:
             - 💻 `amd64(uefi-x86)`
             - 🐋 Docker image: https://hub.docker.com/u/ophub
 
-      - name: Build the Docker image
-        id: makedocker
-        if: ${{ inputs.publish_docker != 'none' && !cancelled() }}
-        run: |
-          chmod +x ${MAKE_DOCKER_SH}
-          ${MAKE_DOCKER_SH}
-          echo "status=success" >> ${GITHUB_OUTPUT}
-
-      - name: Set up Docker Buildx
-        id: buildx
-        if: ${{ steps.makedocker.outputs.status == 'success' && !cancelled() }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Login to Docker Hub
         id: login
         if: ${{ steps.makedocker.outputs.status == 'success' && !cancelled() }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Push image to Docker Hub
+      - name: Load and push image to Docker Hub
         id: push
         if: ${{ steps.makedocker.outputs.status == 'success' && !cancelled() }}
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          platforms: linux/amd64
-          context: ${{ env.DOCKER_OUTPATH }}
-          tags: |
-            "${{ inputs.publish_docker }}-${{ inputs.set_release }}:amd64"
+        run: |
+          # Load the offline Docker image built by build_armbian_docker_image.sh
+          offline_image="$(ls out/*.tar.gz 2>/dev/null | head -n 1)"
+          [[ -z "${offline_image}" ]] && echo "Error: No offline image found." && exit 1
+          loaded_image="$(docker load -i "${offline_image}" | grep -oP 'Loaded image: \K.*')"
+          [[ -z "${loaded_image}" ]] && echo "Error: Failed to load Docker image." && exit 1
+          echo "Loaded image: ${loaded_image}"
+
+          # Tag for Docker Hub
+          docker tag "${loaded_image}" "${{ inputs.publish_docker }}-${{ inputs.set_release }}:amd64"
+
+          # Push to Docker Hub
+          docker push "${{ inputs.publish_docker }}-${{ inputs.set_release }}:amd64"
+
+          echo "status=success" >> ${GITHUB_OUTPUT}

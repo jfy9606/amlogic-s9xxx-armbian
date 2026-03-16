@@ -37,6 +37,7 @@ on:
           - bdkj-bd-one
           - bdy-g18-pro
           - beikeyun
+          - cd1000
           - chainedbox
           - cm3588-nas
           - crrc
@@ -73,6 +74,7 @@ on:
           - lckfb-tspi
           - leez
           - lx-r3s
+          - lyt-t68m
           - lz-d3568
           - lz-d3588
           - lz-k3568
@@ -190,6 +192,7 @@ on:
           - station-m2
           - station-p2
           - sv-33a6x
+          - sv-33a6x-vpu
           - swan1-w28
           - sw799
           - taram
