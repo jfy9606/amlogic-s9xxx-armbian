@@ -110,7 +110,6 @@ for pkg in ${pkg_linux_uboot}; do
         apt-get remove -qq --purge -y --allow-change-held-packages ${pkg} 2>/dev/null && tolog "23. Remove ${pkg}"
     fi
 done
-
 # 24. Remove armbian-firmware
 pkg_armbian_firmware="$(dpkg -l | awk '{print $2}' | grep "^armbian-firmware" || true)"
 for pkg in ${pkg_armbian_firmware}; do
@@ -123,7 +122,7 @@ for pkg in ${pkg_armbian_firmware}; do
 done
 
 # 25. Remove armbian-bsp-cli-*
-pkg_armbian_bsp_cli="$(dpkg -l | awk '{print $2}' | grep armbian-bsp-cli- || true)"
+pkg_armbian_bsp_cli="$(dpkg -l | awk '{print $2}' | grep "^armbian-bsp-cli-" || true)"
 for pkg in ${pkg_armbian_bsp_cli}; do
     if [[ -n "${pkg}" ]]; then
         armbian_bsp_cli_list_path="/var/lib/dpkg/info/${pkg}.list"
@@ -134,19 +133,19 @@ for pkg in ${pkg_armbian_bsp_cli}; do
 done
 
 # Hold packages
-[[ -n "$(dpkg -l | awk '{print $2}' | grep u-boot-tools || true)" ]] && apt-mark hold u-boot-tools 2>/dev/null && tolog "25. Hold u-boot-tools"
-[[ -n "$(dpkg -l | awk '{print $2}' | grep sunxi-tools || true)" ]] && apt-mark hold sunxi-tools 2>/dev/null && tolog "26. Hold sunxi-tools"
-[[ -n "$(dpkg -l | awk '{print $2}' | grep initramfs-tools || true)" ]] && apt-mark hold initramfs-tools* 2>/dev/null && tolog "27. Hold initramfs-tools*"
+[[ -n "$(dpkg -l | awk '{print $2}' | grep u-boot-tools || true)" ]] && apt-mark hold u-boot-tools 2>/dev/null && tolog "26. Hold u-boot-tools"
+[[ -n "$(dpkg -l | awk '{print $2}' | grep sunxi-tools || true)" ]] && apt-mark hold sunxi-tools 2>/dev/null && tolog "27. Hold sunxi-tools"
+[[ -n "$(dpkg -l | awk '{print $2}' | grep initramfs-tools || true)" ]] && apt-mark hold initramfs-tools* 2>/dev/null && tolog "28. Hold initramfs-tools*"
 
 # [ dpkg -c armbian-bsp-cli-odroidn2_23.02.2_arm64.deb ]
 # [ dpkg -S boot.cmd ] : [ armbian-bsp-cli-odroidn2: /usr/share/armbian/boot.cmd ]
 # Rename /usr/share/armbian to .bak
-[[ -d "/usr/share/armbian" ]] && mv -f /usr/share/armbian /usr/share/armbian.bak 2>/dev/null && tolog "28. Rename /usr/share/armbian to .bak"
+[[ -d "/usr/share/armbian" ]] && mv -f /usr/share/armbian /usr/share/armbian.bak 2>/dev/null && tolog "29. Rename /usr/share/armbian to .bak"
 # Rename /usr/lib/nand-sata-install to .bak (unused bootloader and u-boot files)
-[[ -d "/usr/lib/nand-sata-install" ]] && mv -f /usr/lib/nand-sata-install /usr/lib/nand-sata-install.bak 2>/dev/null && tolog "29. Rename /usr/lib/nand-sata-install to .bak"
+[[ -d "/usr/lib/nand-sata-install" ]] && mv -f /usr/lib/nand-sata-install /usr/lib/nand-sata-install.bak 2>/dev/null && tolog "30. Rename /usr/lib/nand-sata-install to .bak"
 # Disable update_initramfs
 initramfs_conf="/etc/initramfs-tools/update-initramfs.conf"
-[[ -f "${initramfs_conf}" ]] && sed -i "s|^update_initramfs=.*|update_initramfs=no|g" "${initramfs_conf}" && tolog "30. Set update-initramfs.conf"
+[[ -f "${initramfs_conf}" ]] && sed -i "s|^update_initramfs=.*|update_initramfs=no|g" "${initramfs_conf}" && tolog "31. Disable update-initramfs.conf"
 
 # ===== C. Disable unnecessary system services =====
 
