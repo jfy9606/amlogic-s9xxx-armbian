@@ -1,6 +1,6 @@
 # Armbian Build and Usage Guide
 
-View Chinese description | [查看中文说明](README.cn.md)
+[View English description](README.md) | [查看中文说明](README.cn.md) | [日本語の説明を確認する](README.ja.md)
 
 GitHub Actions is a CI/CD service from Microsoft that provides high-performance virtual server environments for building, testing, packaging, and deploying projects. Public repositories can use it free of charge with no time limit, and each build can run for up to 6 hours — more than sufficient for compiling Armbian (typically completed within about 3 hours). This project is shared for educational and experience-exchange purposes. Please do not initiate any harmful network attacks or misuse GitHub Actions.
 
@@ -397,9 +397,9 @@ armbian-install
 
 You can use Docker versions of Armbian images on Ubuntu/Debian/Armbian systems. These images are hosted on [Docker Hub](https://hub.docker.com/r/ophub) and can be downloaded directly for use.
 
-Four Armbian Docker images with different base versions are provided: `armbian-trixie`, `armbian-bookworm`, `armbian-noble`, and `armbian-jammy`. Each version has both `arm64` and `amd64` builds, allowing you to choose the appropriate version based on your needs.
+Four Armbian Docker images with different base versions are provided: `armbian-trixie`, `armbian-bookworm`, `armbian-noble`, and `armbian-resolute`. Each version has both `arm64` and `amd64` builds, allowing you to choose the appropriate version based on your needs.
 
-Among them, armbian-trixie is based on Debian 13, armbian-bookworm is based on Debian 12, armbian-noble is based on Ubuntu 24.04, and armbian-jammy is based on Ubuntu 22.04.
+Among them, armbian-trixie is based on Debian 13, armbian-bookworm is based on Debian 12, armbian-noble is based on Ubuntu 24.04, and armbian-resolute is based on Ubuntu 26.04.
 
 The arm64 version is suitable for devices with platform architectures such as Amlogic/Rockchip/Allwinner, while the amd64 version is suitable for computers and servers with x86_64 architecture.
 

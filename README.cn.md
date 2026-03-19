@@ -4,7 +4,7 @@
 
 # Armbian / 岸边
 
-查看英文说明 | [View English description](README.md)
+[View English description](README.md) | [查看中文说明](README.cn.md) | [日本語の説明を確認する](README.ja.md)
 
 Armbian（中文名：岸边）是基于 Debian/Ubuntu 构建的专为 ARM 芯片设计的轻量级 Linux 发行版。Armbian 系统精简、清洁，100% 兼容并继承了 Debian/Ubuntu 的功能与丰富的软件生态，可以安全稳定地运行在 TF/SD/USB 及设备的 eMMC 存储中。本项目保留了 Armbian 官方系统的完整性，并进一步拓展了对电视盒子等非官方支持设备的适配，同时增加了一系列便捷操作指令。现在你可以将电视盒子的安卓 TV 系统替换为 Armbian，使其成为一台功能强大的服务器。
 
@@ -230,7 +230,7 @@ sudo apt-get install -y $(cat compile-kernel/tools/script/ubuntu2404-build-armbi
 
 1. 关于 Workflows 文件的配置详见 [.github/workflows/](.github/workflows/) 目录。
 
-2. 全新编译：在 [Actions](https://github.com/ophub/amlogic-s9xxx-armbian/actions) 页面中选择 ***`Build Armbian server image`***，即可通过 [build-armbian-arm64-server-image.yml](.github/workflows/build-armbian-arm64-server-image.yml) 进行编译。可选择 Ubuntu 系列（如 `jammy`）或 Debian 系列（如 `bullseye`）等。点击 ***`Run workflow`*** 按钮即可开始编译。
+2. 全新编译：在 [Actions](https://github.com/ophub/amlogic-s9xxx-armbian/actions) 页面中选择 ***`Build Armbian server image`***，即可通过 [build-armbian-arm64-server-image.yml](.github/workflows/build-armbian-arm64-server-image.yml) 进行编译。可选择 Ubuntu 系列（如 `resolute`）或 Debian 系列（如 `trixie`）等。点击 ***`Run workflow`*** 按钮即可开始编译。
 
 3. 二次编译：如果 [Releases](https://github.com/ophub/amlogic-s9xxx-armbian/releases) 中已有编译好的 `Armbian_.*-trunk_.*.img.gz` 文件，只需为其他 board 重新打包，可跳过源文件编译步骤，直接使用 [build-armbian-using-releases-files.yml](.github/workflows/build-armbian-using-releases-files.yml) 进行二次制作。
 

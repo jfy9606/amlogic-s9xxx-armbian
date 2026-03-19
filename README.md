@@ -4,7 +4,7 @@
 
 # Armbian
 
-View Chinese description | [查看中文说明](README.cn.md)
+[View English description](README.md) | [查看中文说明](README.cn.md) | [日本語の説明を確認する](README.ja.md)
 
 Armbian is a lightweight Linux distribution built specifically for ARM chips, based on Debian/Ubuntu. The Armbian system is lean, clean, and 100% compatible with Debian/Ubuntu, inheriting its functionality and rich software ecosystem. It runs securely and stably on TF/SD/USB storage and the device's eMMC. This project preserves the integrity of the official Armbian system while extending support for unofficially supported devices such as TV boxes, and adds a set of convenient management commands. You can now replace the Android TV system on your TV box with Armbian, transforming it into a powerful server.
 
@@ -230,7 +230,7 @@ sudo apt-get install -y $(cat compile-kernel/tools/script/ubuntu2404-build-armbi
 
 1. Workflow configuration files are located in the [.github/workflows/](.github/workflows/) directory.
 
-2. Fresh Build: On the [Actions](https://github.com/ophub/amlogic-s9xxx-armbian/actions) page, select ***`Build Armbian server image`*** to use the [build-armbian-arm64-server-image.yml](.github/workflows/build-armbian-arm64-server-image.yml) workflow. You can choose from Ubuntu series (e.g., `jammy`) or Debian series (e.g., `bullseye`). Click ***`Run workflow`*** to start the build.
+2. Fresh Build: On the [Actions](https://github.com/ophub/amlogic-s9xxx-armbian/actions) page, select ***`Build Armbian server image`*** to use the [build-armbian-arm64-server-image.yml](.github/workflows/build-armbian-arm64-server-image.yml) workflow. You can choose from Ubuntu series (e.g., `resolute`) or Debian series (e.g., `trixie`). Click ***`Run workflow`*** to start the build.
 
 3. Rebuild: If [Releases](https://github.com/ophub/amlogic-s9xxx-armbian/releases) already contains compiled `Armbian_.*-trunk_.*.img.gz` files and you only need to repackage for other boards, skip the source compilation step and use [build-armbian-using-releases-files.yml](.github/workflows/build-armbian-using-releases-files.yml) for secondary builds.
 

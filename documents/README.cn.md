@@ -1,6 +1,6 @@
 # Armbian 构建及使用方法
 
-查看英文说明 | [View English description](README.md)
+[View English description](README.md) | [查看中文说明](README.cn.md) | [日本語の説明を確認する](README.ja.md)
 
 GitHub Actions 是 Microsoft 推出的一项服务，提供高性能的虚拟服务器环境，可用于构建、测试、打包和部署项目。公开仓库可免费无时间限制地使用，单次编译时间长达 6 小时，足以满足 Armbian 的编译需求（通常 3 小时左右即可完成编译）。本项目仅供技术交流，不足之处敬请谅解。请勿发起网络攻击或恶意使用 GitHub Actions。
 
@@ -397,9 +397,9 @@ armbian-install
 
 可以在 Ubuntu/Debian/Armbian 系统中使用 Docker 版本的 Armbian 镜像。这些镜像托管在 [Docker Hub](https://hub.docker.com/r/ophub) 上，可以直接下载使用。
 
-提供了四个不同内核版本的 Armbian Docker 镜像：`armbian-trixie`，`armbian-bookworm`，`armbian-noble`，`armbian-jammy`。每个版本均提供 `arm64` 和 `amd64` 架构，可根据需要选择。
+提供了四个不同内核版本的 Armbian Docker 镜像：`armbian-trixie`，`armbian-bookworm`，`armbian-noble`，`armbian-resolute`。每个版本均提供 `arm64` 和 `amd64` 架构，可根据需要选择。
 
-其中 armbian-trixie 基于 debian13，armbian-bookworm 基于 debian12，armbian-noble 基于 ubuntu24.04，armbian-jammy 基于 ubuntu22.04。
+其中 armbian-trixie 基于 debian13，armbian-bookworm 基于 debian12，armbian-noble 基于 ubuntu24.04，armbian-resolute 基于 ubuntu26.04。
 
 arm64 版本适用于 Amlogic/Rockchip/Allwinner 等平台架构的设备，amd64 版本适用于 x86_64 架构的电脑和服务器。
 
