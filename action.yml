@@ -1,5 +1,5 @@
 name: "Rebuild Armbian and Kernel"
-author: "https://github.com/ophub/amlogic-s9xxx-armbian"
+author: "https://github.com/jfy9606/amlogic-s9xxx-armbian"
 description: "Support Amlogic, Rockchip and Allwinner boxes."
 inputs:
   # Select build target
@@ -73,10 +73,6 @@ inputs:
     description: "Select the compilation toolchain"
     required: false
     default: "clang"
-  config_flavor:
-    description: "Set the kernel config flavor"
-    required: false
-    default: ""
   kernel_config:
     description: "Set the path of kernel .config"
     required: false
@@ -101,23 +97,19 @@ inputs:
     description: "Set whether to use silent log output"
     required: false
     default: "false"
-  enable_log:
-    description: "Set whether to output logs to a file"
-    required: false
-    default: "false"
   ccache_clear:
     description: "Set whether to clear the cache"
     required: false
     default: "false"
   docker_hostpath:
-    description: "Set Docker working directory"
+    description: "Set the docker host path for kernel compilation"
     required: false
     default: ""
   docker_image:
-    description: "Select Armbian docker image"
+    description: "Set the docker image for compilation"
     required: false
     default: ""
-
+    
 runs:
   using: "composite"
   steps:
@@ -213,12 +205,14 @@ runs:
             [[ -n "${{ inputs.armbian_fstype }}" ]] && make_command="${make_command} -t ${{ inputs.armbian_fstype }}"
             [[ -n "${{ inputs.armbian_size }}" ]] && make_command="${make_command} -s ${{ inputs.armbian_size }}"
             [[ -n "${{ inputs.builder_name }}" ]] && make_command="${make_command} -n ${{ inputs.builder_name }}"
-            read -r -a make_args <<< "${make_command}"
-            sudo ./rebuild "${make_args[@]}"
+            sudo ./rebuild ${make_command}
 
             cd ${{ github.action_path }}/${armbian_filepath}
             # Compress Armbian image file
             pigz -qf *.img || gzip -qf *.img
+            # Generate a sha256sum verification file for each Armbian image file
+            #for file in *; do [[ -f "${file}" ]] && sha256sum "${file}" >"${file}.sha" 2>/dev/null; done
+            #rm -f *.sha.sha 2>/dev/null
             sync && sleep 3
 
             cd ${{ github.action_path }}
@@ -238,6 +232,7 @@ runs:
 
             # Custom kernel config files
             config_filepath="compile-kernel/tools/config"
+            kernel_outpath="compile-kernel/output"
             [[ -d "${config_filepath}" ]] || mkdir -p ${config_filepath}
             if [[ -n "${{ inputs.kernel_config }}" && "${{ inputs.kernel_config }}" != "false" ]]; then
                 if [[ "$(ls ${{ github.workspace }}/${{ inputs.kernel_config }}/config-* -l 2>/dev/null | grep "^-" | wc -l)" -ne "0" ]]; then
@@ -281,14 +276,12 @@ runs:
             [[ -n "${{ inputs.delete_source }}" ]] && make_command="${make_command} -d ${{ inputs.delete_source }}"
             [[ -n "${{ inputs.silent_log }}" ]] && make_command="${make_command} -s ${{ inputs.silent_log }}"
             [[ -n "${{ inputs.ccache_clear }}" ]] && make_command="${make_command} -c ${{ inputs.ccache_clear }}"
-            [[ -n "${{ inputs.config_flavor }}" ]] && make_command="${make_command} -f ${{ inputs.config_flavor }}"
-            [[ -n "${{ inputs.enable_log }}" ]] && make_command="${make_command} -l ${{ inputs.enable_log }}"
             [[ -n "${{ inputs.docker_hostpath }}" ]] && make_command="${make_command} -h ${{ inputs.docker_hostpath }}"
             [[ -n "${{ inputs.docker_image }}" ]] && make_command="${make_command} -i ${{ inputs.docker_image }}"
             read -r -a make_args <<< "${make_command}"
             sudo ./recompile "${make_args[@]}"
 
-            cd ${{ inputs.docker_hostpath }}
+            cd ${{ github.action_path }}
             kernel_outpath="compile-kernel/output"
             output_tags="$(ls -l ${kernel_outpath}/*.tar.gz 2>/dev/null | awk '{print $9}' | grep -oP '\d+\.\d+\.\d+' | sort -u | xargs | tr "[ ]" "_")"
             echo -e "Setting output environment variables."
