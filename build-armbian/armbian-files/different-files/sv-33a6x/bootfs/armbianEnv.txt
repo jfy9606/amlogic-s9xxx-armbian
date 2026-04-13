@@ -1,0 +1,13 @@
+verbosity=7
+bootlogo=true
+fdtfile=rockchip/rk3399-sv-33a6x.dtb
+rootdev=/dev/mmcblk0p2
+rootfstype=ext4
+earlycon=on
+console=serial
+consoleargs=console=ttyS2,1500000 console=tty1
+usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
+extraargs=rw rootwait video=HDMI-A-1:1920x1080@60e
+extraboardargs=net.ifnames=0 max_loop=128
+overlay_prefix=rk3399
+user_overlays=
