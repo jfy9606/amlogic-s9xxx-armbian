@@ -373,20 +373,8 @@ jobs:
           # Enable QEMU emulation for ARM cross-compilation
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
 
-          # Set the board name for the base Armbian image
-          config_board="${{ inputs.config_board }}"
-          [[ -z "${config_board}" ]] && config_board="odroidn2"
-
-          # Map custom devices to compatible Armbian official boards
-          declare -A board_map=(
-            ["sv-33a6x"]="rock-4c-plus"
-            ["sv-33a6x-vpu"]="rock-4c-plus"
-            ["lx-r3s"]="rock-5b"
-          )
-          if [[ -n "${board_map[$config_board]}" ]]; then
-            echo "⚠️ Custom device [${config_board}] mapped to [${board_map[$config_board]}]"
-            config_board="${board_map[$config_board]}"
-          fi
+          # Use fixed odroidn2 as base Armbian image (custom devices use armbian_board for rebuild)
+          config_board="odroidn2"
 
           # Compile options reference: https://docs.armbian.com/Developer-Guide_Build-Options
           cd build/
